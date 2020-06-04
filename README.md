@@ -10,9 +10,9 @@ This [CSV To I2C Log Converter] helps to convert RAW sampled logic data based on
  - Stop Bit  : [P]
 
 Example log:
- 10.33ms:[S] 70 08 [P]
- 10.55ms:[S] 71 00 40?[P]
- 15.34ms:[S] 70 08 [S]71 00 40?[P]
+ > 10.33ms:[S] 70 08 [P] <br />
+ > 10.55ms:[S] 71 00 40?[P] <br />
+ > 15.34ms:[S] 70 08 [S]71 00 40?[P] <br />
 
 Timestamp can be enabled/disabled.
 If timestamp enabled, please select correct Sampling Rate.
