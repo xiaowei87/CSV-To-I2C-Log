@@ -20,7 +20,7 @@ Please take note that Sampling Rate should be more than double of I2C speed. <br
 For example, I2C @ 100KHz ==> Sampling Rate should be more than 200KHz. <br />
 Note: Accuracy ratio might have to be tuned in source code accordingly. <br />
 
-If you just need to use it, then you can download the executable (exe) file directly.
+If you just need to use it, then you can download the executable (exe) file directly. <br />
 [Click to download EXE]
 
 [Click to download EXE]: <https://github.com/xiaowei87/CSV-To-I2C-Log/raw/master/Visual_CS/CSV_To_I2C_Log/bin/Release/CSV_To_I2C_Log.exe>
