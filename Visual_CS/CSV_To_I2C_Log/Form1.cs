@@ -29,6 +29,8 @@ namespace CSV_To_I2C_Log
         string csvpath = "";
         string txtpath = "";
 
+        bool CancelFlag = false;
+
         public Form1()
         {
             InitializeComponent();
@@ -36,8 +38,7 @@ namespace CSV_To_I2C_Log
         
         private void BtnConvert_Click(object sender, EventArgs e)
         {
-            BtnConvert.Enabled = false;
-            BtnCancel.Enabled = true;
+            PbarConvert.Value = 0;
 
             bool filecheck;
 
@@ -97,6 +98,10 @@ namespace CSV_To_I2C_Log
                 if (NumSCL.Value != NumSDA.Value)
                 {
                     PbarConvert.Value = 0;
+                    BtnConvert.Enabled = false;
+                    BtnCancel.Enabled = true;
+                    listSCL.Clear();
+                    listSDA.Clear();
                     backgroundWorker1.RunWorkerAsync();
                 }
                 else
@@ -108,33 +113,22 @@ namespace CSV_To_I2C_Log
 
         public void CSV_To_I2C_Log()
         {
-            bool CancelFlag = false;
-
             int ColSCL = Decimal.ToInt16(NumSCL.Value);
             int ColSDA = Decimal.ToInt16(NumSDA.Value);
+
+            int CntCsvLine = 0;
+            int CntProcLine = 0;
+            long templong = 0;
+            int prePrecent = 0;
+
+            CancelFlag = false;
 
             using (var sr = new StreamReader(csvpath))
             {
                 while (!sr.EndOfStream)
                 {
                     var line = sr.ReadLine();
-                    var values = line.Split(',');
-
-                    if (values.Length < ColSCL)
-                    {
-                        MessageBox.Show("SCL data stopped unexpectedly @ " + listSCL.Count, "Info", MessageBoxButtons.OK);
-                        break;
-                    }
-                    else if (values.Length < ColSDA)
-                    {
-                        MessageBox.Show("SDA data stopped unexpectedly @ " + listSDA.Count, "Info", MessageBoxButtons.OK);
-                        break;
-                    }
-                    else
-                    {
-                        listSCL.Add(values[(ColSCL - 1)]);
-                        listSDA.Add(values[(ColSDA - 1)]);
-                    }
+                    CntCsvLine++;
 
                     if (backgroundWorker1.CancellationPending == true)
                     {
@@ -142,185 +136,232 @@ namespace CSV_To_I2C_Log
                         break;
                     }
                 }
+            }
 
-                if (CancelFlag == false)
+            if (CancelFlag == false)
+            {
+                backgroundWorker1.ReportProgress(5); // Just roughly estimated 5%
+
+                using (var sr = new StreamReader(csvpath))
                 {
-                    if ((listSCL.Count > 1) && (listSDA.Count > 1))
+                    while (!sr.EndOfStream)
                     {
-                        I2C_Status i2cStatus = I2C_Status.Idle;
-                        int i2cBitPtr = 0;
-                        int i2cData = 0;
-                        string preSDA = "0";
-                        bool timestampcheck = ChkTimestamp.Enabled;
-                        double timestamp = 0;
-                        int prePrecent = 0;
-                        int i;
+                        var line = sr.ReadLine();
+                        var values = line.Split(',');
 
-                        using (StreamWriter sw = File.AppendText(txtpath))
+                        if (values.Length < ColSCL)
                         {
-                            for (i = 1; i < listSCL.Count; i++)
-                            {
-                                switch (i2cStatus)
-                                {
-                                    case I2C_Status.Idle:
-                                        if ((listSCL[i] == "1") && (listSDA[i]) == "1")
-                                        {
-                                            // Idle
-                                        }
-                                        else if ((listSCL[i] == "1") && (listSDA[i]) == "0")
-                                        {
-                                            // Start Bit
-                                            i2cStatus = I2C_Status.StartDetected;
+                            MessageBox.Show("SCL data stopped unexpectedly @ " + listSCL.Count, "Info", MessageBoxButtons.OK);
+                            break;
+                        }
+                        else if (values.Length < ColSDA)
+                        {
+                            MessageBox.Show("SDA data stopped unexpectedly @ " + listSDA.Count, "Info", MessageBoxButtons.OK);
+                            break;
+                        }
+                        else
+                        {
+                            listSCL.Add(values[(ColSCL - 1)]);
+                            listSDA.Add(values[(ColSDA - 1)]);
+                        }
 
-                                            if (timestampcheck)
-                                            {
-                                                timestamp = 0;
-                                                if (Rbtn250.Checked)
-                                                {
-                                                    timestamp = i * 3.56 / 1000;
-                                                }
-                                                else if (Rbtn500.Checked)
-                                                {
-                                                    timestamp = i * 1.78 / 1000;
-                                                }
-                                                else if (Rbtn1000.Checked)
-                                                {
-                                                    timestamp = i * 0.89 / 1000;
-                                                }
-                                                sw.Write(timestamp.ToString("0.00") + "ms:");
-                                            }
-                                            sw.Write("[S] ");
-                                        }
-                                        else if ((listSCL[i] == "0") && (listSDA[i]) == "1")
-                                        {
-                                            // Error
-                                            i2cStatus = I2C_Status.Error;
-                                        }
-                                        else if ((listSCL[i] == "0") && (listSDA[i]) == "0")
-                                        {
-                                            // Error
-                                            i2cStatus = I2C_Status.Error;
-                                        }
-                                        break;
-                                    case I2C_Status.StartDetected:
-                                        if ((listSCL[i] == "0") && (listSDA[i]) == "0")
-                                        {
-                                            // Ready to wait for data
-                                            i2cStatus = I2C_Status.WaitSCLHigh;
-                                            i2cBitPtr = 0;
-                                            i2cData = 0;
-                                        }
-                                        break;
-                                    case I2C_Status.WaitSCLHigh:
-                                        if (listSCL[i] == "1")
-                                        {
-                                            // SCL High, read bit
-                                            if (i2cBitPtr < 8) // Bit0-7 Data
-                                            {
-                                                if (listSDA[i] == "1")
-                                                {
-                                                    i2cData |= (1 << (7 - i2cBitPtr));
-                                                }
-                                                else
-                                                {
+                        if (backgroundWorker1.CancellationPending == true)
+                        {
+                            CancelFlag = true;
+                            break;
+                        }
 
-                                                }
-                                            }
-                                            else // Bit8 ACK
-                                            {
-                                                sw.Write(i2cData.ToString("X2"));
-
-                                                if (listSDA[i] == "0")
-                                                {
-                                                    sw.Write(" ");
-                                                }
-                                                else
-                                                {
-                                                    sw.Write("?");
-                                                }
-                                                i2cData = 0;
-                                            }
-                                            i2cStatus = I2C_Status.WaitSCLLow;
-                                            i2cBitPtr++;
-                                            preSDA = listSDA[i];
-                                        }
-                                        break;
-                                    case I2C_Status.WaitSCLLow:
-                                        if (listSCL[i] == "0")
-                                        {
-                                            i2cStatus = I2C_Status.WaitSCLHigh;
-
-                                            if (i2cBitPtr >= 9)
-                                            {
-                                                i2cBitPtr = 0;
-                                            }
-                                        }
-                                        else
-                                        {
-                                            if (preSDA == "0")
-                                            {
-                                                if (preSDA != listSDA[i])
-                                                {
-                                                    preSDA = listSDA[i];
-
-                                                    if (listSDA[i] == "1")
-                                                    {
-                                                        sw.WriteLine("[P]");
-                                                        i2cStatus = I2C_Status.Idle;
-                                                        i2cBitPtr = 0;
-                                                        i2cData = 0;
-                                                    }
-                                                }
-                                            }
-                                            else if (preSDA == "1")
-                                            {
-                                                if (preSDA != listSDA[i])
-                                                {
-                                                    preSDA = listSDA[i];
-
-                                                    if (listSDA[i] == "0")
-                                                    {
-                                                        sw.Write("[S]");
-                                                        i2cStatus = I2C_Status.StartDetected;
-                                                        i2cBitPtr = 0;
-                                                        i2cData = 0;
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        break;
-                                    case I2C_Status.Error:
-                                    default:
-                                        if ((listSCL[i] == "1") && (listSDA[i]) == "1")
-                                        {
-                                            // Back to Idle
-                                            i2cStatus = I2C_Status.Idle;
-                                        }
-                                        break;
-                                }
-                                if ((100 * i / listSCL.Count) > (prePrecent + 2))
-                                {
-                                    prePrecent += 2;
-                                    backgroundWorker1.ReportProgress(prePrecent);
-                                }
-                                if (backgroundWorker1.CancellationPending == true)
-                                {
-                                    CancelFlag = true;
-                                    break;
-                                }
-                            }
-                            if (i >= listSCL.Count)
-                            {
-                                MessageBox.Show("Conversion is complete.", "Info", MessageBoxButtons.OK);
-                            }
+                        CntProcLine++;
+                        templong = (long)90 * (long)CntProcLine / (long)CntCsvLine;
+                        if (templong > prePrecent)
+                        {
+                            prePrecent += 2;
+                            backgroundWorker1.ReportProgress(5 + prePrecent);
                         }
                     }
                 }
-                
-                if (CancelFlag == true)
+
+                prePrecent = 0;
+            }
+
+            if (CancelFlag == false)
+            {
+                if ((listSCL.Count > 1) && (listSDA.Count > 1))
                 {
-                    MessageBox.Show("Conversion was cancelled.", "Info", MessageBoxButtons.OK);
+                    I2C_Status i2cStatus = I2C_Status.Idle;
+                    int i2cBitPtr = 0;
+                    int i2cData = 0;
+                    string preSDA = "0";
+                    bool timestampcheck = ChkTimestamp.Enabled;
+                    double timestamp = 0;
+                    int i;
+
+                    using (StreamWriter sw = File.AppendText(txtpath))
+                    {
+                        for (i = 1; i < listSCL.Count; i++)
+                        {
+                            switch (i2cStatus)
+                            {
+                                case I2C_Status.Idle:
+                                    if ((listSCL[i] == "1") && (listSDA[i]) == "1")
+                                    {
+                                        // Idle
+                                    }
+                                    else if ((listSCL[i] == "1") && (listSDA[i]) == "0")
+                                    {
+                                        // Start Bit
+                                        i2cStatus = I2C_Status.StartDetected;
+
+                                        if (timestampcheck)
+                                        {
+                                            timestamp = 0;
+                                            if (Rbtn250.Checked)
+                                            {
+                                                timestamp = i * 3.56 / 1000;
+                                            }
+                                            else if (Rbtn500.Checked)
+                                            {
+                                                timestamp = i * 1.78 / 1000;
+                                            }
+                                            else if (Rbtn1000.Checked)
+                                            {
+                                                timestamp = i * 0.89 / 1000;
+                                            }
+                                            sw.Write(timestamp.ToString("0.00") + "ms:");
+                                        }
+                                        sw.Write("[S] ");
+                                    }
+                                    else if ((listSCL[i] == "0") && (listSDA[i]) == "1")
+                                    {
+                                        // Error
+                                        i2cStatus = I2C_Status.Error;
+                                    }
+                                    else if ((listSCL[i] == "0") && (listSDA[i]) == "0")
+                                    {
+                                        // Error
+                                        i2cStatus = I2C_Status.Error;
+                                    }
+                                    break;
+                                case I2C_Status.StartDetected:
+                                    if ((listSCL[i] == "0") && (listSDA[i]) == "0")
+                                    {
+                                        // Ready to wait for data
+                                        i2cStatus = I2C_Status.WaitSCLHigh;
+                                        i2cBitPtr = 0;
+                                        i2cData = 0;
+                                    }
+                                    break;
+                                case I2C_Status.WaitSCLHigh:
+                                    if (listSCL[i] == "1")
+                                    {
+                                        // SCL High, read bit
+                                        if (i2cBitPtr < 8) // Bit0-7 Data
+                                        {
+                                            if (listSDA[i] == "1")
+                                            {
+                                                i2cData |= (1 << (7 - i2cBitPtr));
+                                            }
+                                            else
+                                            {
+
+                                            }
+                                        }
+                                        else // Bit8 ACK
+                                        {
+                                            sw.Write(i2cData.ToString("X2"));
+
+                                            if (listSDA[i] == "0")
+                                            {
+                                                sw.Write(" ");
+                                            }
+                                            else
+                                            {
+                                                sw.Write("?");
+                                            }
+                                            i2cData = 0;
+                                        }
+                                        i2cStatus = I2C_Status.WaitSCLLow;
+                                        i2cBitPtr++;
+                                        preSDA = listSDA[i];
+                                    }
+                                    break;
+                                case I2C_Status.WaitSCLLow:
+                                    if (listSCL[i] == "0")
+                                    {
+                                        i2cStatus = I2C_Status.WaitSCLHigh;
+
+                                        if (i2cBitPtr >= 9)
+                                        {
+                                            i2cBitPtr = 0;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        if (preSDA == "0")
+                                        {
+                                            if (preSDA != listSDA[i])
+                                            {
+                                                preSDA = listSDA[i];
+
+                                                if (listSDA[i] == "1")
+                                                {
+                                                    sw.WriteLine("[P]");
+                                                    i2cStatus = I2C_Status.Idle;
+                                                    i2cBitPtr = 0;
+                                                    i2cData = 0;
+                                                }
+                                            }
+                                        }
+                                        else if (preSDA == "1")
+                                        {
+                                            if (preSDA != listSDA[i])
+                                            {
+                                                preSDA = listSDA[i];
+
+                                                if (listSDA[i] == "0")
+                                                {
+                                                    sw.Write("[S]");
+                                                    i2cStatus = I2C_Status.StartDetected;
+                                                    i2cBitPtr = 0;
+                                                    i2cData = 0;
+                                                }
+                                            }
+                                        }
+                                    }
+                                    break;
+                                case I2C_Status.Error:
+                                default:
+                                    if ((listSCL[i] == "1") && (listSDA[i]) == "1")
+                                    {
+                                        // Back to Idle
+                                        i2cStatus = I2C_Status.Idle;
+                                    }
+                                    break;
+                            }
+                            templong = (long)5 * (long)i / (long)listSCL.Count;
+                            if (templong > prePrecent)
+                            {
+                                prePrecent += 1;
+                                backgroundWorker1.ReportProgress(95 + prePrecent);
+                            }
+                            if (backgroundWorker1.CancellationPending == true)
+                            {
+                                CancelFlag = true;
+                                break;
+                            }
+                        }
+                        if (i >= listSCL.Count)
+                        {
+                            backgroundWorker1.ReportProgress(100);
+                            MessageBox.Show("Conversion is complete.", "Info", MessageBoxButtons.OK);
+                        }
+                    }
                 }
+            }
+
+            if (CancelFlag == true)
+            {
+                MessageBox.Show("Conversion was cancelled.", "Info", MessageBoxButtons.OK);
             }
         }
 
@@ -341,9 +382,6 @@ namespace CSV_To_I2C_Log
             if (backgroundWorker1.CancellationPending == true)
             {
                 e.Cancel = true;
-                PbarConvert.Value = 0;
-                BtnCancel.Enabled = false;
-                BtnConvert.Enabled = true;
             }
         }
 
@@ -354,7 +392,14 @@ namespace CSV_To_I2C_Log
 
         private void backgroundWorker1_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
         {
-            PbarConvert.Value = 100;
+            if (CancelFlag == false)
+            {
+                PbarConvert.Value = 100;
+            }
+            else
+            {
+                PbarConvert.Value = 0;
+            }
             BtnCancel.Enabled = false;
             BtnConvert.Enabled = true;
         }
