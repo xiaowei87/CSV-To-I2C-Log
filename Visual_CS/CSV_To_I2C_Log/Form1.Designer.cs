@@ -30,7 +30,7 @@
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Form1));
             this.BtnConvert = new System.Windows.Forms.Button();
-            this.BtnAbout = new System.Windows.Forms.Button();
+            this.BtnCancel = new System.Windows.Forms.Button();
             this.ChkTimestamp = new System.Windows.Forms.CheckBox();
             this.LblSCL = new System.Windows.Forms.Label();
             this.Rbtn250 = new System.Windows.Forms.RadioButton();
@@ -43,6 +43,8 @@
             this.NumSDA = new System.Windows.Forms.NumericUpDown();
             this.LblDelimiter = new System.Windows.Forms.Label();
             this.TxtDelimiter = new System.Windows.Forms.TextBox();
+            this.PbarConvert = new System.Windows.Forms.ProgressBar();
+            this.backgroundWorker1 = new System.ComponentModel.BackgroundWorker();
             this.GrpSamplingRate.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.NumSCL)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.NumSDA)).BeginInit();
@@ -50,7 +52,7 @@
             // 
             // BtnConvert
             // 
-            this.BtnConvert.Location = new System.Drawing.Point(122, 78);
+            this.BtnConvert.Location = new System.Drawing.Point(122, 81);
             this.BtnConvert.Name = "BtnConvert";
             this.BtnConvert.Size = new System.Drawing.Size(57, 40);
             this.BtnConvert.TabIndex = 0;
@@ -58,14 +60,16 @@
             this.BtnConvert.UseVisualStyleBackColor = true;
             this.BtnConvert.Click += new System.EventHandler(this.BtnConvert_Click);
             // 
-            // BtnAbout
+            // BtnCancel
             // 
-            this.BtnAbout.Location = new System.Drawing.Point(122, 124);
-            this.BtnAbout.Name = "BtnAbout";
-            this.BtnAbout.Size = new System.Drawing.Size(57, 40);
-            this.BtnAbout.TabIndex = 1;
-            this.BtnAbout.Text = "About";
-            this.BtnAbout.UseVisualStyleBackColor = true;
+            this.BtnCancel.Enabled = false;
+            this.BtnCancel.Location = new System.Drawing.Point(122, 127);
+            this.BtnCancel.Name = "BtnCancel";
+            this.BtnCancel.Size = new System.Drawing.Size(57, 40);
+            this.BtnCancel.TabIndex = 1;
+            this.BtnCancel.Text = "Cancel";
+            this.BtnCancel.UseVisualStyleBackColor = true;
+            this.BtnCancel.Click += new System.EventHandler(this.BtnCancel_Click);
             // 
             // ChkTimestamp
             // 
@@ -203,13 +207,30 @@
             this.TxtDelimiter.TabIndex = 11;
             this.TxtDelimiter.Text = ",";
             // 
+            // PbarConvert
+            // 
+            this.PbarConvert.Location = new System.Drawing.Point(12, 173);
+            this.PbarConvert.Name = "PbarConvert";
+            this.PbarConvert.Size = new System.Drawing.Size(167, 23);
+            this.PbarConvert.TabIndex = 12;
+            // 
+            // backgroundWorker1
+            // 
+            this.backgroundWorker1.WorkerReportsProgress = true;
+            this.backgroundWorker1.WorkerSupportsCancellation = true;
+            this.backgroundWorker1.DoWork += new System.ComponentModel.DoWorkEventHandler(this.backgroundWorker1_DoWork);
+            this.backgroundWorker1.ProgressChanged += new System.ComponentModel.ProgressChangedEventHandler(this.backgroundWorker1_ProgressChanged);
+            this.backgroundWorker1.RunWorkerCompleted += new System.ComponentModel.RunWorkerCompletedEventHandler(this.backgroundWorker1_RunWorkerCompleted);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(189, 176);
+            this.ClientSize = new System.Drawing.Size(189, 206);
+            this.Controls.Add(this.PbarConvert);
             this.Controls.Add(this.TxtDelimiter);
             this.Controls.Add(this.LblDelimiter);
+            this.Controls.Add(this.BtnCancel);
             this.Controls.Add(this.NumSDA);
             this.Controls.Add(this.LblColumn);
             this.Controls.Add(this.LblSDA);
@@ -217,7 +238,6 @@
             this.Controls.Add(this.GrpSamplingRate);
             this.Controls.Add(this.LblSCL);
             this.Controls.Add(this.ChkTimestamp);
-            this.Controls.Add(this.BtnAbout);
             this.Controls.Add(this.BtnConvert);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedToolWindow;
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
@@ -235,7 +255,7 @@
         #endregion
 
         private System.Windows.Forms.Button BtnConvert;
-        private System.Windows.Forms.Button BtnAbout;
+        private System.Windows.Forms.Button BtnCancel;
         private System.Windows.Forms.CheckBox ChkTimestamp;
         private System.Windows.Forms.Label LblSCL;
         private System.Windows.Forms.RadioButton Rbtn250;
@@ -248,6 +268,8 @@
         private System.Windows.Forms.Label LblDelimiter;
         private System.Windows.Forms.TextBox TxtDelimiter;
         private System.Windows.Forms.NumericUpDown NumSCL;
+        private System.Windows.Forms.ProgressBar PbarConvert;
+        private System.ComponentModel.BackgroundWorker backgroundWorker1;
     }
 }
 

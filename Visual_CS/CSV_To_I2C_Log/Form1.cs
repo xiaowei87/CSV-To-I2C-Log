@@ -6,6 +6,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -32,10 +33,16 @@ namespace CSV_To_I2C_Log
         {
             InitializeComponent();
         }
-
+        
         private void BtnConvert_Click(object sender, EventArgs e)
         {
+            BtnConvert.Enabled = false;
+            BtnCancel.Enabled = true;
+
             bool filecheck;
+
+            csvpath = "";
+            txtpath = "";
 
             OpenFileDialog openFileDialog1 = new OpenFileDialog();
             openFileDialog1.InitialDirectory = "D:\\";
@@ -82,14 +89,15 @@ namespace CSV_To_I2C_Log
             }
             else
             {
-                MessageBox.Show("Selected CSV file is invalid.", "Error", MessageBoxButtons.OK);
+                MessageBox.Show("Please select valid CSV file.", "Error", MessageBoxButtons.OK);
             }
 
             if (filecheck)
             {
                 if (NumSCL.Value != NumSDA.Value)
                 {
-                    CSV_To_I2C_Log();
+                    PbarConvert.Value = 0;
+                    backgroundWorker1.RunWorkerAsync();
                 }
                 else
                 {
@@ -98,7 +106,7 @@ namespace CSV_To_I2C_Log
             }
         }
 
-        private void CSV_To_I2C_Log()
+        public void CSV_To_I2C_Log()
         {
             int ColSCL = Decimal.ToInt16(NumSCL.Value);
             int ColSDA = Decimal.ToInt16(NumSDA.Value);
@@ -135,10 +143,12 @@ namespace CSV_To_I2C_Log
                     string preSDA = "0";
                     bool timestampcheck = ChkTimestamp.Enabled;
                     double timestamp = 0;
+                    int prePrecent = 0;
+                    int i;
 
                     using (StreamWriter sw = File.AppendText(txtpath))
                     {
-                        for (int i = 1; i < listSCL.Count; i++)
+                        for (i = 1; i < listSCL.Count; i++)
                         {
                             switch (i2cStatus)
                             {
@@ -151,7 +161,7 @@ namespace CSV_To_I2C_Log
                                     {
                                         // Start Bit
                                         i2cStatus = I2C_Status.StartDetected;
-                                        
+
                                         if (timestampcheck)
                                         {
                                             timestamp = 0;
@@ -278,8 +288,24 @@ namespace CSV_To_I2C_Log
                                     }
                                     break;
                             }
+                            if ((100 * i / listSCL.Count) > (prePrecent + 2))
+                            {
+                                prePrecent += 2;
+                                backgroundWorker1.ReportProgress(prePrecent);
+                            }
+                            if (backgroundWorker1.CancellationPending == true)
+                            {
+                                break;
+                            }
                         }
-                        MessageBox.Show("Conversion is complete.", "Info", MessageBoxButtons.OK);
+                        if (i < listSCL.Count)
+                        {
+                            MessageBox.Show("Conversion was cancelled.", "Info", MessageBoxButtons.OK);
+                        }
+                        else
+                        {
+                            MessageBox.Show("Conversion is complete.", "Info", MessageBoxButtons.OK);
+                        }
                     }
                 }
             }
@@ -287,18 +313,29 @@ namespace CSV_To_I2C_Log
 
         private void ChkTimestamp_CheckedChanged(object sender, EventArgs e)
         {
-#if false
-            if (ChkTimestamp.Checked)
-            {
-                GrpSamplingRate.Enabled = true;
-            }
-            else
-            {
-                GrpSamplingRate.Enabled = false;
-            }
-#else
             GrpSamplingRate.Enabled = ChkTimestamp.Checked;
-#endif
+        }
+
+        private void BtnCancel_Click(object sender, EventArgs e)
+        {
+            backgroundWorker1.CancelAsync();
+        }
+
+        private void backgroundWorker1_DoWork(object sender, DoWorkEventArgs e)
+        {
+            CSV_To_I2C_Log();
+        }
+
+        private void backgroundWorker1_ProgressChanged(object sender, ProgressChangedEventArgs e)
+        {
+            PbarConvert.Value = e.ProgressPercentage;
+        }
+
+        private void backgroundWorker1_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
+        {
+            PbarConvert.Value = 100;
+            BtnCancel.Enabled = false;
+            BtnConvert.Enabled = true;
         }
     }
 }
